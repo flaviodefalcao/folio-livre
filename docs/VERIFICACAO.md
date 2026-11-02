@@ -8,6 +8,10 @@ Verificado em 2 de novembro de 2026:
 - A interface mostra progresso na instalação da voz. O catálogo oferece **Tentar de novo**, **Outro endereço** e **Navegador**, além de tentar alternativas em falhas de conexão.
 - A Faber foi baixada da distribuição oficial do Sherpa ONNX: 67.183.065 bytes, SHA-256 `7add3f923ad6bc25ca8a192805fd1a64d1b3893e4611c4a9719545a825039a83`.
 
+Também foi instalado o APK de produção em um emulador **Android 15 (API 35)**. Com **Wi-Fi e dados móveis desativados**, a Faber foi instalada pelo botão **Instalar voz**, o progresso foi exibido e a interface passou a mostrar **Instalada · offline**, com a Faber selecionada. Não houve teste em telefone físico.
+
+![Faber instalada no Android com a rede desativada](faber-instalada-android.png)
+
 As verificações de interface no navegador simulam o transporte nativo e executam os componentes reais do app. O teste nativo de instalação usa o pacote real da voz. A disponibilidade do site de livros continua dependendo da conexão e do próprio servidor.
 
 ## Histórico da versão 1.0.0
