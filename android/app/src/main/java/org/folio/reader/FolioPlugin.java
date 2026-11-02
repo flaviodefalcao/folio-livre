@@ -57,6 +57,7 @@ public class FolioPlugin extends Plugin {
     private static final long MAX_KINDLE_BOOK = 40L * 1024 * 1024;
     private static final long MAX_UNCOMPRESSED = 300L * 1024 * 1024;
     private final ExecutorService work = Executors.newFixedThreadPool(2);
+    private final ExecutorService voiceWork = Executors.newSingleThreadExecutor();
     static final AtomicBoolean downloading = new AtomicBoolean(false);
     private final AtomicBoolean exporting = new AtomicBoolean(false);
     private final AtomicBoolean catalogOpen = new AtomicBoolean(false);
@@ -81,6 +82,13 @@ public class FolioPlugin extends Plugin {
 
     @Override public void load() {
         preferences = getContext().getSharedPreferences("folio_private", Context.MODE_PRIVATE);
+        if(!preferences.getBoolean("catalogMirrorsV2",false)) {
+            SharedPreferences.Editor migration=preferences.edit().putBoolean("catalogMirrorsV2",true);
+            String previous=preferences.getString("annaUrl","");
+            if(previous.isEmpty() || previous.matches("https://annas-archive\\.gl/?"))migration.putString("annaUrl",CatalogDomains.DEFAULT_URL);
+            migration.commit();
+        }
+
 
         neuralModels=new NeuralVoiceModels(getContext());
         neuralNarrator=new NeuralNarrator(getContext(),neuralModels,new NeuralNarrator.Events() {
@@ -197,7 +205,7 @@ public class FolioPlugin extends Plugin {
 
     private JSObject settings() {
         JSObject result=new JSObject();
-        result.put("annaUrl",preferences.getString("annaUrl","https://annas-archive.gl"));
+        result.put("annaUrl",preferences.getString("annaUrl",CatalogDomains.DEFAULT_URL));
         result.put("supportsIntegratedCatalog",true);return result;
     }
     @PluginMethod public void getSettings(PluginCall call) { work.execute(() -> call.resolve(settings())); }
@@ -253,7 +261,7 @@ public class FolioPlugin extends Plugin {
         HttpUrl resolved = base.resolve(href);
         if (resolved == null) throw new UserError("Link de catálogo inválido.");
         resolved = httpsURL(resolved.toString());
-        if (!sameOrigin(base, resolved)) throw new UserError("O link não pertence ao catálogo configurado.");
+        if (!CatalogDomains.compatible(base, resolved)) throw new UserError("O link não pertence ao catálogo configurado.");
         return resolved;
     }
 
@@ -414,7 +422,7 @@ public class FolioPlugin extends Plugin {
     @PluginMethod public void searchCatalog(PluginCall call) {
         work.execute(() -> {
             try {
-                HttpUrl base = httpsURL(preferences.getString("annaUrl", "https://annas-archive.gl"));
+                HttpUrl base = httpsURL(preferences.getString("annaUrl", CatalogDomains.DEFAULT_URL));
                 HttpUrl url = catalogSearchURL(base.toString(), call.getData()); int page = call.getData().optInt("page", 1);
                 HttpUrl searchURL = url;
                 synchronized (bookSearchCache) {
@@ -460,7 +468,7 @@ public class FolioPlugin extends Plugin {
 
     @PluginMethod public void openCatalog(PluginCall call) {
         try {
-            HttpUrl base = httpsURL(preferences.getString("annaUrl", "https://annas-archive.gl"));
+            HttpUrl base = httpsURL(preferences.getString("annaUrl", CatalogDomains.DEFAULT_URL));
             String collect = call.getString("collect", "");
             if (!collect.isEmpty() && !collect.equals("search") && !collect.equals("links")) throw new UserError("Modo de catálogo inválido.");
             HttpUrl url = collect.isEmpty() ? httpsURL(call.getString("url")) : catalogLink(base, call.getString("url"));
@@ -478,7 +486,7 @@ public class FolioPlugin extends Plugin {
     @PluginMethod public void catalogLinks(PluginCall call) {
         work.execute(() -> {
             try {
-                HttpUrl base = httpsURL(preferences.getString("annaUrl", "https://annas-archive.gl"));
+                HttpUrl base = httpsURL(preferences.getString("annaUrl", CatalogDomains.DEFAULT_URL));
                 HttpUrl page = catalogLink(base, call.getString("url"));
                 if (!page.encodedPath().matches("/md5/[a-fA-F0-9]{32}/?")) throw new UserError("Escolha a página de um livro para ver os links.");
                 HttpUrl url = page;
@@ -516,7 +524,7 @@ public class FolioPlugin extends Plugin {
                 if (results != null) {
                     JSObject data = new JSObject(results);
                     try {
-                        HttpUrl base = httpsURL(preferences.getString("annaUrl", "https://annas-archive.gl"));
+                        HttpUrl base = httpsURL(preferences.getString("annaUrl", CatalogDomains.DEFAULT_URL));
                         rememberAnnaSearch(catalogSearchURL(base.toString(), data), data);
                     } catch (Exception ignored) { /* Malformed searches are not cached. */ }
                     notifyListeners("catalogResults", data, true); if (call != null) call.resolve(); return;
@@ -751,13 +759,13 @@ public class FolioPlugin extends Plugin {
     @PluginMethod public void neuralVoices(PluginCall call) {
         com.getcapacitor.JSArray array=new com.getcapacitor.JSArray();
         for(NeuralVoiceModels.Model model:NeuralVoiceModels.MODELS) {
-            JSObject item=new JSObject();item.put("id",model.id);item.put("name",model.name);item.put("language",model.language);item.put("bytes",model.bytes);item.put("installed",neuralModels.installed(model));array.put(item);
+            JSObject item=new JSObject();item.put("id",model.id);item.put("name",model.name);item.put("language",model.language);item.put("bytes",model.bytes);item.put("installed",neuralModels.installed(model));item.put("bundled",neuralModels.bundled(model));array.put(item);
         }
         JSObject result=new JSObject();result.put("voices",array);call.resolve(result);
     }
     @PluginMethod public void downloadNeuralVoice(PluginCall call) {
         if(!neuralDownloading.compareAndSet(false,true)){call.reject("Aguarde o download atual.");return;}
-        work.execute(() -> {try {
+        voiceWork.execute(() -> {try {
             NeuralVoiceModels.Model model=NeuralVoiceModels.model(call.getString("id",""));
             neuralModels.download(model,percent -> {JSObject data=new JSObject();data.put("id",model.id);data.put("percent",percent);notifyListeners("neuralDownloadProgress",data);});
             call.resolve();
@@ -904,7 +912,7 @@ public class FolioPlugin extends Plugin {
         stopKindleSession();
         if(neuralNarrator!=null)neuralNarrator.close();
         getContext().stopService(new Intent(getContext(),AudioService.class));AudioService.stopAudio=null;
-        work.shutdownNow(); if (client != null) client.dispatcher().cancelAll();
+        work.shutdownNow();voiceWork.shutdownNow(); if (client != null) client.dispatcher().cancelAll();
         if (speech != null) { speech.stop(); speech.shutdown(); speechReady = false; }
     }
     static final class UserError extends Exception { UserError(String message) { super(message); } }

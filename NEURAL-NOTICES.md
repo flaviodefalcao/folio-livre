@@ -7,4 +7,4 @@ Includes ONNX Runtime (MIT) and eSpeak NG phonemization (GPL-3.0). eSpeak source
 Kotlin stdlib, Apache Commons Compress, Commons IO: Apache-2.0.
 Folio source and Android build scripts: https://github.com/flaviodefalcao/folio-livre
 
-Models are downloaded separately from https://github.com/k2-fsa/sherpa-onnx/releases/tag/tts-models with pinned SHA-256 digests. MODEL_CARD files are retained in the installed model directory. Faber Portuguese dataset: CC0, https://github.com/OHF-Voice/voice-datasets . Lessac English uses LJSpeech public-domain recordings; retain its model card.
+The Faber model is bundled in the APK for offline installation; Lessac is downloaded on demand. Models come from https://github.com/k2-fsa/sherpa-onnx/releases/tag/tts-models with pinned SHA-256 digests. Faber’s upstream model card is included as `android/app/src/main/assets/neural-licenses/FABER-MODEL-CARD.md`. Model archives are extracted without removing their notices. Faber Portuguese dataset: CC0, https://github.com/OHF-Voice/voice-datasets . Lessac English uses LJSpeech public-domain recordings; retain its model card.

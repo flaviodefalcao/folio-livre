@@ -22,8 +22,16 @@ final class NeuralVoiceModels {
         new Model("lessac-en-us","Lessac · inglês americano","en-US","vits-piper-en_US-lessac-medium","9e3febfacf0abf4270172d2958bcec246032b7e88efc2720840cc80c93de334e",67230653L)
     };
     interface Progress {void update(int percent);}
+    interface AssetOpener {InputStream open(String path) throws IOException;}
     private final File root;
-    NeuralVoiceModels(Context context) {root=new File(context.getFilesDir(),"neural-voices");}
+    private final AssetOpener assets;
+    NeuralVoiceModels(Context context) {this(new File(context.getFilesDir(),"neural-voices"),path -> context.getAssets().open(path));}
+    NeuralVoiceModels(File root,AssetOpener assets) {this.root=root;this.assets=assets;}
+    static String assetPath(Model model) {return "neural-models/"+model.archive+".tar.bz2";}
+    boolean bundled(Model model) {
+        try(InputStream input=assets.open(assetPath(model))) {return true;}
+        catch(IOException missing) {return false;}
+    }
     static Model model(String id) throws IOException {
         for(Model m:MODELS)if(m.id.equals(id))return m;
         throw new IOException("Voz neural desconhecida.");
@@ -44,7 +52,11 @@ final class NeuralVoiceModels {
         File staging=new File(root,"staging-"+UUID.randomUUID());if(!staging.mkdir())throw new IOException("Não foi possível preparar o download.");
         File archive=new File(staging,"voice.tar.bz2");
         try {
-            OkHttpClient client=FolioPlugin.publicClient().newBuilder().callTimeout(10,TimeUnit.MINUTES).build();
+            progress.update(0);
+            if(bundled(model)) {
+                try(InputStream in=assets.open(assetPath(model))) {saveVerifiedArchive(in,archive,model,progress);}
+            } else {
+            OkHttpClient client=FolioPlugin.publicClient().newBuilder().callTimeout(10,TimeUnit.MINUTES).readTimeout(90,TimeUnit.SECONDS).build();
             HttpUrl url=HttpUrl.get(model.url());Response response=null;
             try {
                 for(int redirects=0;redirects<6;redirects++) {
@@ -56,17 +68,10 @@ final class NeuralVoiceModels {
                     url=next;
                 }
                 if(response==null || !response.isSuccessful() || response.body()==null)throw new IOException("Não foi possível baixar a voz. Tente novamente no Wi-Fi.");
-                MessageDigest digest=MessageDigest.getInstance("SHA-256");long count=0;int last=-1;
-                try(InputStream in=response.body().byteStream();OutputStream out=new FileOutputStream(archive)) {
-                    byte[] buffer=new byte[65536];int n;
-                    while((n=in.read(buffer))!=-1) {
-                        count+=n;if(count>model.bytes)throw new IOException("Arquivo de voz maior que o esperado.");
-                        digest.update(buffer,0,n);out.write(buffer,0,n);
-                        int percent=(int)(count*90/model.bytes);if(percent!=last){progress.update(percent);last=percent;}
-                    }
-                }
-                if(count!=model.bytes || !model.sha256.equals(hex(digest.digest())))throw new IOException("Falha na verificação da voz; o arquivo foi descartado.");
+                try(InputStream in=response.body().byteStream()) {saveVerifiedArchive(in,archive,model,progress);}
             } finally {if(response!=null)response.close();client.dispatcher().executorService().shutdown();}
+            }
+            progress.update(92);
             File payload=new File(staging,"payload");payload.mkdir();
             try(TarArchiveInputStream tar=new TarArchiveInputStream(new BZip2CompressorInputStream(new FileInputStream(archive)))) {
                 TarArchiveEntry entry;long expanded=0;int entries=0;
@@ -87,6 +92,18 @@ final class NeuralVoiceModels {
             if(!payload.renameTo(destination))throw new IOException("Não foi possível concluir a instalação.");
             progress.update(100);
         } finally {delete(staging);}
+    }
+    private static void saveVerifiedArchive(InputStream in,File archive,Model model,Progress progress) throws Exception {
+        MessageDigest digest=MessageDigest.getInstance("SHA-256");long count=0;int last=-1;
+        try(OutputStream out=new FileOutputStream(archive)) {
+            byte[] buffer=new byte[65536];int n;
+            while((n=in.read(buffer))!=-1) {
+                count+=n;if(count>model.bytes)throw new IOException("Arquivo de voz maior que o esperado.");
+                digest.update(buffer,0,n);out.write(buffer,0,n);
+                int percent=(int)(count*90/model.bytes);if(percent!=last){progress.update(percent);last=percent;}
+            }
+        }
+        if(count!=model.bytes || !model.sha256.equals(hex(digest.digest())))throw new IOException("Falha na verificação da voz; o arquivo foi descartado.");
     }
     static File safeEntry(File root,String name) throws IOException {
         if(name.startsWith("/") || name.contains("\\") || name.indexOf('\0')>=0)throw new IOException("Caminho inválido no modelo.");

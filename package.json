@@ -1,7 +1,7 @@
 {
   "name": "folio-livre",
   "productName": "Folio Livre",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Leitor EPUB para Android com narração e catálogo gratuito.",
   "type": "module",
   "license": "MIT",

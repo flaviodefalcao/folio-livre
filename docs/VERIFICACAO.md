@@ -1,4 +1,16 @@
-# Verificação da versão 1.0.0
+# Verificação da versão 1.0.1
+
+Verificado em 2 de novembro de 2026:
+
+- 22 testes web aprovados, incluindo busca, importação de EPUB e seleção da Faber pela ação **Instalar voz**.
+- 11 testes nativos aprovados. O teste de instalação usa o arquivo real da Faber incluído no APK, confere seu SHA-256, descompacta o modelo e verifica a instalação sem fazer uma requisição de rede.
+- Os testes de catálogo verificam a troca entre domínios reconhecidos, a preservação da busca e a rejeição de destinos arbitrários.
+- A interface mostra progresso na instalação da voz. O catálogo oferece **Tentar de novo**, **Outro endereço** e **Navegador**, além de tentar alternativas em falhas de conexão.
+- A Faber foi baixada da distribuição oficial do Sherpa ONNX: 67.183.065 bytes, SHA-256 `7add3f923ad6bc25ca8a192805fd1a64d1b3893e4611c4a9719545a825039a83`.
+
+As verificações de interface no navegador simulam o transporte nativo e executam os componentes reais do app. O teste nativo de instalação usa o pacote real da voz. A disponibilidade do site de livros continua dependendo da conexão e do próprio servidor.
+
+## Histórico da versão 1.0.0
 
 Verificado em 2 de novembro de 2026:
 

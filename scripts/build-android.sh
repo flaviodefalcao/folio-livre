@@ -3,6 +3,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 source scripts/android-env.sh
 python3 scripts/prepare-neural-runtime.py
+python3 scripts/prepare-voice-assets.py
 npm run build
 npx cap sync android
 mkdir -p .toolchain
@@ -22,5 +23,5 @@ PY
 fi
 (cd android && ./gradlew --no-daemon assembleRelease)
 mkdir -p release
-cp android/app/build/outputs/apk/release/app-release.apk release/Folio-Livre-v1.0.0.apk
-"$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner" verify --verbose release/Folio-Livre-v1.0.0.apk
+cp android/app/build/outputs/apk/release/app-release.apk release/Folio-Livre-v1.0.1.apk
+"$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner" verify --verbose release/Folio-Livre-v1.0.1.apk

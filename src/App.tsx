@@ -44,7 +44,7 @@ const NextReads = lazy(() => import("./NextReads"));
 const Reader = lazy(() => import("./Reader"));
 
 const defaultSettings: Settings = {
-  annaUrl: localStorage.getItem("folio:anna-url") || "https://annas-archive.gl",
+  annaUrl: localStorage.getItem("folio:anna-url") || "https://annas-archive.gd",
 };
 export async function openExternal(url: string) {
   if (window.folio) await window.folio.openExternal(url);
@@ -1053,7 +1053,7 @@ export default function App() {
                 <span>
                   <BookOpen size={14} /> Feito para ler, pensar e descobrir.
                 </span>
-                <span>Folio Livre · v1.0.0</span>
+                <span>Folio Livre · v1.0.1</span>
               </footer>
             </>
           )}

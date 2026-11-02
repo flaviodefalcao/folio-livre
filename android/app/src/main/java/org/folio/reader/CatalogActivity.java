@@ -13,6 +13,7 @@ import android.webkit.SslErrorHandler;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
+import android.webkit.WebResourceError;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -50,6 +51,38 @@ public class CatalogActivity extends AppCompatActivity {
     private String collectMode = "";
     private int collectAttempts;
     private WindowInsetsCompat layoutInsets;
+    private TextView loadError;
+    private final java.util.Set<String> attemptedDomains=new java.util.HashSet<>();
+    private String currentUrl;
+    private int loadRevision;
+    private boolean mainDocumentReceived;
+
+    private void loadCatalog(String value) {
+        currentUrl=value;
+        final int revision=++loadRevision;mainDocumentReceived=false;
+        try {attemptedDomains.add(HttpUrl.get(value).host());}catch(Exception ignored) {}
+        loadError.setVisibility(android.view.View.GONE);browser.setVisibility(android.view.View.VISIBLE);
+        browser.loadUrl(value);
+        browser.postDelayed(() -> {if(!isFinishing() && revision==loadRevision && !mainDocumentReceived)loadFailed("O catálogo demorou para responder nesta conexão.");},25000);
+    }
+    private boolean nextDomain(boolean reset) {
+        try {
+            HttpUrl previous=FolioPlugin.httpsURL(currentUrl);
+            if(reset) {attemptedDomains.clear();attemptedDomains.add(previous.host());}
+            HttpUrl next=CatalogDomains.next(previous,attemptedDomains);
+            if(next==null)return false;
+            origin=next.newBuilder().encodedPath("/").query(null).fragment(null).build();
+            status.setText("Tentando outro endereço do catálogo…");loadCatalog(next.toString());return true;
+        }catch(Exception invalid) {return false;}
+    }
+    private void loadFailed(String message) {
+        useResults.setEnabled(false);
+        if(nextDomain(false))return;
+        loadRevision++;
+        browser.setVisibility(android.view.View.GONE);loadError.setVisibility(android.view.View.VISIBLE);
+        loadError.setText(message+"\n\nTente novamente, use Outro endereço ou abra no Navegador.");
+        status.setText("Não foi possível abrir o catálogo nesta conexão.");
+    }
 
     private void layoutPadding(android.view.View root, WindowInsetsCompat insets) {
         Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
@@ -86,9 +119,14 @@ public class CatalogActivity extends AppCompatActivity {
 
         root.addView(toolbar);
         status = new TextView(this); status.setText(origin.host()); status.setTextSize(12); status.setPadding(dp(12), dp(4), dp(12), dp(4)); root.addView(status); if (dark) status.setTextColor(Color.LTGRAY);
+        LinearLayout recovery=new LinearLayout(this);
+        Button retry=new Button(this);retry.setText("Tentar de novo");retry.setTextSize(12);retry.setOnClickListener(v -> {attemptedDomains.clear();loadCatalog(currentUrl);});recovery.addView(retry,new LinearLayout.LayoutParams(0,dp(48),1));
+        Button alternate=new Button(this);alternate.setText("Outro endereço");alternate.setTextSize(12);alternate.setOnClickListener(v -> {if(!nextDomain(true))Toast.makeText(this,"Atualize o endereço do catálogo nas Preferências.",Toast.LENGTH_LONG).show();});recovery.addView(alternate,new LinearLayout.LayoutParams(0,dp(48),1));
+        Button external=new Button(this);external.setText("Navegador");external.setTextSize(12);external.setOnClickListener(v -> {try {startActivity(new Intent(Intent.ACTION_VIEW,android.net.Uri.parse(currentUrl)));}catch(Exception error){Toast.makeText(this,"Nenhum navegador disponível.",Toast.LENGTH_LONG).show();}});recovery.addView(external,new LinearLayout.LayoutParams(0,dp(48),1));root.addView(recovery);
         useResults = new Button(this); useResults.setText(collectMode.equals("links") ? "Mostrar links no Folio" : "Usar resultados no Folio"); useResults.setEnabled(false); useResults.setOnClickListener(v -> collectResults()); root.addView(useResults);
         ProgressBar progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal); progress.setMax(100); root.addView(progress, new LinearLayout.LayoutParams(-1, dp(3)));
         browser = new WebView(this); root.addView(browser, new LinearLayout.LayoutParams(-1, 0, 1));
+        loadError=new TextView(this);loadError.setTextSize(16);loadError.setTextColor(dark?Color.WHITE:Color.rgb(26,53,51));loadError.setPadding(dp(20),dp(32),dp(20),dp(20));loadError.setVisibility(android.view.View.GONE);root.addView(loadError,new LinearLayout.LayoutParams(-1,0,1));
         setContentView(root);
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         ViewCompat.setOnApplyWindowInsetsListener(root, (view, insets) -> {
@@ -120,23 +158,31 @@ public class CatalogActivity extends AppCompatActivity {
                     return null;
                 } catch (Exception error) { return blocked(); }
             }
-            @Override public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) { useResults.setEnabled(false); }
+            @Override public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) { useResults.setEnabled(false);currentUrl=url;try{attemptedDomains.add(HttpUrl.get(url).host());}catch(Exception ignored){} }
             @Override public void onPageFinished(WebView view, String url) {
+                if(!url.equals(currentUrl) || browser.getVisibility()!=android.view.View.VISIBLE)return;
+                mainDocumentReceived=true;
                 try {
                     HttpUrl parsed = FolioPlugin.httpsURL(url); status.setText(parsed.host());
-                    boolean eligible = FolioPlugin.sameOrigin(origin, parsed) && (parsed.encodedPath().equals("/search") || (collectMode.equals("links") && parsed.encodedPath().matches("/md5/[a-fA-F0-9]{32}/?")));
+                    boolean eligible = CatalogDomains.compatible(origin, parsed) && (parsed.encodedPath().equals("/search") || (collectMode.equals("links") && parsed.encodedPath().matches("/md5/[a-fA-F0-9]{32}/?")));
+                    if(eligible)origin=parsed.newBuilder().encodedPath("/").query(null).fragment(null).build();
                     useResults.setEnabled(eligible);
                     if (eligible && !collectMode.isEmpty()) { collectAttempts = 0; autoCollect(); }
                 } catch (Exception ignored) { useResults.setEnabled(false); }
             }
             @Override public void onReceivedHttpError(WebView view, WebResourceRequest request, WebResourceResponse response) {
+                if(!request.isForMainFrame() || !request.getUrl().toString().equals(currentUrl))return;
+                mainDocumentReceived=true;
                 if (request.isForMainFrame() && (response.getStatusCode() == 403 || response.getStatusCode() == 429)) status.setText("O site exige uma verificação. Conclua a etapa exibida na página.");
+                else if(request.isForMainFrame() && response.getStatusCode()>=500)loadFailed("O servidor do catálogo não respondeu.");
             }
-            @Override public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) { handler.cancel(); status.setText("O certificado HTTPS do site não foi aceito."); }
+            @Override public void onReceivedError(WebView view,WebResourceRequest request,WebResourceError error) {if(request.isForMainFrame() && request.getUrl().toString().equals(currentUrl))loadFailed("A página não carregou. O endereço pode estar indisponível ou bloqueado nesta rede.");}
+            @Override public void onPageCommitVisible(WebView view,String url) {if(url.equals(currentUrl))mainDocumentReceived=true;}
+            @Override public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) { handler.cancel();if(error.getUrl().equals(currentUrl))loadFailed("Não foi possível estabelecer uma conexão HTTPS segura com o catálogo."); }
         });
         browser.setDownloadListener((url, userAgent, disposition, mime, length) -> startDownload(url));
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) { @Override public void handleOnBackPressed() { navigateBack(); } });
-        browser.loadUrl(getIntent().getStringExtra("url"));
+        loadCatalog(getIntent().getStringExtra("url"));
     }
 
     private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }

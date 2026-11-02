@@ -13,7 +13,7 @@ patterns = {
 failures = []
 for name in filter(None, paths):
     p = Path(name)
-    if p.is_symlink() or any(part in {'.toolchain', '.env', 'node_modules', 'research', 'release'} for part in p.parts) or p.suffix in {'.jks', '.keystore', '.p12', '.pfx', '.pem', '.key'}:
+    if p.is_symlink() or any(part in {'.toolchain', '.env', 'node_modules', 'research', 'release'} for part in p.parts) or p.suffix in {'.jks', '.keystore', '.p12', '.pfx', '.pem', '.key', '.tar', '.bz2', '.aar', '.apk'}:
         failures.append((name, 'private or local-only file'))
         continue
     data = subprocess.check_output(['git', 'show', ':' + name])

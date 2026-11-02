@@ -29,6 +29,7 @@ research/
 *.log
 
 android/app/libs/*.aar
+android/app/src/main/assets/neural-models/
 
 # iOS generated build state
 **/.build/

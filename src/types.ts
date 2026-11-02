@@ -1,4 +1,4 @@
-export type NeuralVoice = {id: string; name: string; language: string; bytes: number; installed: boolean};
+export type NeuralVoice = {id: string; name: string; language: string; bytes: number; installed: boolean; bundled?:boolean};
 export type Chapter = { id: string; label: string; href: string; text: string; headingEnds?: number[] };
 export type Annotation = {
   id: string;
