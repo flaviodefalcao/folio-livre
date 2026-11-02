@@ -1,0 +1,38 @@
+.library-mode-bar { display:flex; justify-content:flex-end; gap:4px; margin-bottom:12px; }
+.library-mode-bar button { display:grid; place-items:center; width:40px; height:36px; border-radius:9px; color:var(--secondary); }
+.library-mode-bar button[aria-pressed=true], .library-mode-switch button[aria-pressed=true] { background:var(--accent-soft); color:var(--accent); }
+.library-mode-switch { display:flex; gap:8px; }
+.library-mode-switch button { display:flex; align-items:center; justify-content:center; gap:8px; padding:10px 14px; border:1px solid var(--border); border-radius:9px; }
+.book-spine { display:none; }
+.book-grid.bookshelf, .library-minimal .book-grid.bookshelf {
+  --shelf-row:calc(var(--book-cover-size, 100px) * 1.15 + 105px);
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(38px,1fr)); grid-auto-rows:var(--shelf-row); gap:0 3px;
+  padding:14px 10px 14px; border-radius:3px;
+  background-color:#eee8dc;
+  background-image:repeating-linear-gradient(to bottom, transparent 0, transparent calc(var(--shelf-row) - 24px), #b29b7e calc(var(--shelf-row) - 24px), #8d7357 calc(var(--shelf-row) - 21px), #6c5741 calc(var(--shelf-row) - 19px), #00000018 calc(var(--shelf-row) - 18px), transparent calc(var(--shelf-row) - 10px), transparent var(--shelf-row));
+  background-position:0 14px;
+}
+:root[data-theme=dark] .book-grid.bookshelf { background-color:#1d201e; }
+.bookshelf .book-card { height:100%; box-sizing:border-box; position:relative; display:flex; align-items:flex-end; min-width:0; padding:20px 0 24px; margin:0; }
+.book-grid.bookshelf .book-cover {
+  position:relative; display:block; width:100%; height:var(--spine-height); aspect-ratio:auto; min-height:0; padding:0; margin:0;
+  overflow:hidden; border-radius:2px 3px 1px 1px; background:var(--spine-color); color:var(--spine-ink);
+  box-shadow:inset 1px 0 1px #fff4,inset -2px 0 2px #0004,1px 1px 2px #0003;
+  transition:transform .16s ease;
+}
+.book-grid.bookshelf .book-cover::before { content:""; position:absolute; inset:0; width:auto; z-index:1; background:linear-gradient(90deg,#fff2,transparent 18%,transparent 80%,#0002); pointer-events:none; }
+.book-grid.bookshelf .book-cover::after { content:""; position:absolute; left:5px; right:5px; bottom:30px; height:3px; background:var(--spine-accent); opacity:.8; }
+.bookshelf .book-cover:hover, .bookshelf .book-cover:focus-visible { transform:translateY(-5px); outline:2px solid var(--accent); outline-offset:2px; }
+.book-grid.bookshelf .book-cover>img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:.12; filter:blur(2px); border-radius:0; }
+.bookshelf .generated-cover, .bookshelf .cover-hover, .bookshelf .book-status, .bookshelf .book-meta>div:first-child, .bookshelf .add-book-card { display:none!important; }
+.bookshelf .book-spine { display:block; position:absolute; inset:12px 5px 39px; writing-mode:vertical-rl; text-align:left; overflow:hidden; z-index:2; }
+.bookshelf .book-spine strong { position:absolute; top:0; right:0; height:100%; font:600 13px/1.2 Georgia,serif; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.bookshelf .book-spine small { position:absolute; top:0; left:0; height:100%; font:8px/1.1 system-ui,sans-serif; opacity:.85; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.book-grid.bookshelf .book-meta { position:absolute; left:0; right:0; bottom:25px; margin:0; display:block; z-index:3; }
+.book-grid.bookshelf .book-menu-container>.icon-button { display:grid; place-items:center; width:100%; height:28px; min-height:0; padding:5px; border-radius:0; background:transparent; color:var(--spine-ink); opacity:.7; }
+.book-grid.bookshelf .book-menu-container>.icon-button:hover, .book-grid.bookshelf .book-menu-container>.icon-button:focus-visible { background:#0002; opacity:1; }
+.bookshelf .book-card:has(.book-menu) { z-index:5; }
+.book-grid.bookshelf .finished-badge { width:15px; height:15px; padding:0; top:3px; right:3px; display:grid; place-items:center; font-size:0; border-radius:50%; z-index:3; }
+.bookshelf .finished-badge svg { width:10px; }
+@media(prefers-reduced-motion:reduce) { .book-grid.bookshelf .book-cover { transition:none; } }
+@media(min-width:900px) { .book-grid.bookshelf, .library-minimal .book-grid.bookshelf { grid-template-columns:repeat(auto-fill,minmax(43px,1fr)); gap:0 4px; padding-left:20px; padding-right:20px; } }

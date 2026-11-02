@@ -1,0 +1,44 @@
+{
+  "name": "folio-livre",
+  "productName": "Folio Livre",
+  "version": "1.0.0",
+  "description": "Leitor EPUB para Android com narração e catálogo gratuito.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Folio contributors",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5178",
+    "build": "tsc --noEmit && vite build",
+    "test": "node scripts/test.mjs",
+    "android:build": "bash scripts/build-android.sh"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.5.3",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "epubjs": "^0.3.93",
+    "idb-keyval": "^6.2.2",
+    "jszip": "^3.10.1",
+    "lucide-react": "^0.468.0",
+    "radix-ui": "^1.6.7",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "tailwind-merge": "^3.6.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.3",
+    "@playwright/test": "^1.56.0",
+    "@types/node": "^22.19.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "typescript": "^5.9.0",
+    "vite": "^7.2.0"
+  },
+  "overrides": {
+    "@xmldom/xmldom": "0.9.12",
+    "uuid": "11.1.1"
+  }
+}
